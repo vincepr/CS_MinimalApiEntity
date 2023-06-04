@@ -7,6 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SixMinApi", "SixMinApi.cspr
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F641E846-50DD-427D-AAE0-C7F00736B658}"
 	ProjectSection(SolutionItems) = preProject
+		DIFFERENCES.md = DIFFERENCES.md
 		README.md = README.md
 	EndProjectSection
 EndProject
@@ -23,5 +24,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {245F4781-273F-4299-86B7-DEEC7B2C1F03}
 	EndGlobalSection
 EndGlobal

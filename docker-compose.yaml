@@ -1,10 +1,21 @@
 version: '3.8'
 services:
-  sqlserver:
-    image: "mcr.microsoft.com/mssql/server:2019-latest"
+  postgresql:
+    image: "postgres:latest"
     environment:
-      ACCEPT_EULA: "Y"
-      SA_PASSWORD: "pa55word!"
-      MSSQL_PID: "Express"
+      POSTGRES_USER: "sa" # The PostgreSQL user (useful to connect to the database)
+      POSTGRES_PASSWORD: "pa55word!" # The PostgreSQL password (useful to connect to the database)
+      POSTGRES_DB: "default_database" # The PostgreSQL default database (automatically created at first launch)
     ports:
-      - "1433:1433"
+      - "5432:1433"
+
+#version: '3.8'
+#services:
+#  sqlserver:
+#    image: "mcr.microsoft.com/mssql/server:2019-latest"
+#    environment:
+#      ACCEPT_EULA: "Y"
+#      SA_PASSWORD: "pa55word!"
+#      MSSQL_PID: "Express"
+#    ports:
+#      - "1433:1433"

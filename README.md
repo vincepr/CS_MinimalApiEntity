@@ -81,7 +81,9 @@ namespace SixMinApi.Models
 }
 ```
 ### Dtos
-neccessary Dtos (for any operations supported). Ex. the `/Dtos/CommandCreateDto.cs`
+Dtos (Data-Transfer Object) decouples the Data-Shape of our Http-(Json)-Requests and Http-(Json)-Respones of our Api from the underlying Models that are stored in the databse.
+
+add the neccessary Dtos (for any operations supported). Ex. the `/Dtos/CommandCreateDto.cs`
 ```cs
 using System.ComponentModel.DataAnnotations;
 
@@ -171,4 +173,108 @@ If successful, Migrations folder will get created. Filled with code for sql comm
 Next we create the tables in our db:
 ```
 dotnet ef database update
+```
+
+### Auto Mapper
+library that allows mapping from one object source to another object target. 
+- From Model-> 
+- like below or (From Dto -> Model)
+
+`/Profiles/CommandsProfile.cs`
+```cs
+using AutoMapper;
+using SixMinApi.Dtos;
+using SixMinApi.Models;
+
+namespace SixMinApi.Profiles
+{
+    // were implementing Profile from Automapper
+    // to setupt quick mapping from Dtos <-> Models.Command
+    public class CommandsProfile : Profile
+    {
+        public CommandsProfile()
+        {
+            // Source(Model) -> Target(Dtos.CommandReadDto)
+            CreateMap<Command, CommandReadDto>();
+            CreateMap<CommandCreateDto, Command>();
+            CreateMap<CommandUpdateDto, Command>();
+        }
+    }
+}
+```
+
+Not to forget to inject it into our main app. We add to our `Program.cs`
+```cs
+// dependency inject our AutoMapping (mapping Models -> Dtos ) to the builder
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+```
+## vs MVC - Controller
+- 1:30:00
+
+## (minimal) API endpoints
+### example extruded into separate file:
+- `/Api/Handlers.cs`
+```cs
+using AutoMapper;
+using SixMinApi.Data;
+using SixMinApi.Dtos;
+using System.Windows.Input;
+
+namespace SixMinApi.Api
+{
+    public static class Handle
+    {
+        public async static Task<IResult> GetAllCommands(ICommandRepo repo, IMapper mapper)
+        {
+            try
+            {
+                var commands = await repo.GetAllCommands();
+                return Results.Ok(mapper.Map<IEnumerable<CommandReadDto>>(commands));
+            } catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+            
+        }
+    }
+}
+```
+### examples inline
+- We just add the rest inline to our `Program.cs`:
+```cs
+// example of a Handler Function separated out to a extra file
+app.MapGet("/api/v1/commands", Handle.GetAllCommands);
+
+// example of a inline Handler Function
+app.MapGet("/api/v1/{id}", async(ICommandRepo repo, IMapper mapper, int id) => {
+    var command = await repo.GetCommandbyId(id);
+    if (command != null) return Results.Ok(mapper.Map<CommandReadDto>(command));
+    return Results.NotFound();
+});
+
+app.MapPost("api/v1/commands", async(ICommandRepo repo, IMapper mapper, CommandCreateDto cmdCreateDto) =>{
+    var commandModel = mapper.Map<Command>(cmdCreateDto);
+    await repo.CreateCommand(commandModel);     // this will ONLY create the command-context but not flush it down/persist it to the db
+    await repo.SaveChanges();                   // this will flush all gathered changes down to our db
+    // now we want to pass down the (new) id of the freshly generated entry:
+    var cmdReadDto = mapper.Map<CommandReadDto>(commandModel);
+    return Results.Created($"api/v1/commands/{cmdReadDto.Id}", cmdReadDto);
+    // this will return a 'link' to our newly generated Command, like: api/v1/commands/12
+});
+
+app.MapPut("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, int id, CommandUpdateDto cmdUpdateDto) =>{
+    var command = await repo.GetCommandbyId(id);
+    if (command == null ) return Results.NotFound();
+    mapper.Map(cmdUpdateDto, command);
+    await repo.SaveChanges();
+    return Results.Ok();
+});
+
+app.MapDelete("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, int id) => {
+    var command = await repo.GetCommandbyId(id);
+    if (command == null) return Results.NotFound();
+    repo.DeleteCommand(command);
+    await repo.SaveChanges();
+    return Results.Ok();
+});
 ```

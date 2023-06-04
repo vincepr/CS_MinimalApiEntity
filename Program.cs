@@ -1,6 +1,10 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SixMinApi.Data;
+using SixMinApi.Api;
+using AutoMapper;
+using SixMinApi.Dtos;
+using SixMinApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +28,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(sqlC
 // basically we just say we use this ICommandRepo interface.
 builder.Services.AddScoped<ICommandRepo, CommandRepo>();
 
+// dependency inject our AutoMapping (mapping Models -> Dtos ) to the builder
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -34,5 +41,41 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// example of a Handler Function separated out to a extra file
+app.MapGet("/api/v1/commands", Handle.GetAllCommands);
+
+// example of a inline Handler Function
+app.MapGet("/api/v1/{id}", async(ICommandRepo repo, IMapper mapper, int id) => {
+    var command = await repo.GetCommandbyId(id);
+    if (command != null) return Results.Ok(mapper.Map<CommandReadDto>(command));
+    return Results.NotFound();
+});
+
+
+app.MapPost("api/v1/commands", async(ICommandRepo repo, IMapper mapper, CommandCreateDto cmdCreateDto) =>{
+    var commandModel = mapper.Map<Command>(cmdCreateDto);
+    await repo.CreateCommand(commandModel);     // this will ONLY create the command-context but not flush it down/persist it to the db
+    await repo.SaveChanges();                   // this will flush all gathered changes down to our db
+    // now we want to pass down the (new) id of the freshly generated entry:
+    var cmdReadDto = mapper.Map<CommandReadDto>(commandModel);
+    return Results.Created($"api/v1/commands/{cmdReadDto.Id}", cmdReadDto);
+    // this will return a 'link' to our newly generated Command, like: api/v1/commands/12
+});
+
+app.MapPut("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, int id, CommandUpdateDto cmdUpdateDto) =>{
+    var command = await repo.GetCommandbyId(id);
+    if (command == null ) return Results.NotFound();
+    mapper.Map(cmdUpdateDto, command);
+    await repo.SaveChanges();
+    return Results.Ok();
+});
+
+app.MapDelete("api/v1/commands/{id}", async (ICommandRepo repo, IMapper mapper, int id) => {
+    var command = await repo.GetCommandbyId(id);
+    if (command == null) return Results.NotFound();
+    repo.DeleteCommand(command);
+    await repo.SaveChanges();
+    return Results.Ok();
+});
 
 app.Run();
